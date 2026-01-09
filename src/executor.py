@@ -64,7 +64,7 @@ class PurpleAgentExecutor(AgentExecutor):
         try:
             status_message, answer_data = await agent.process_message(
                 message_text,
-                new_conversation=is_new,
+                reset_conversation=is_new,
                 updater=updater  # Pass updater for A2A progress updates
             )
 

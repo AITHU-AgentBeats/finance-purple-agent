@@ -17,24 +17,10 @@ class Settings:
     MODEL_PROVIDER: str = os.getenv("MODEL_PROVIDER", "nebius")
     MODEL_NAME: str = os.getenv("MODEL_NAME", "moonshotai/Kimi-K2-Instruct")
 
-    TASK_CONFIG = {
-        "env": "retail",
-        "user_strategy": "llm",
-        "user_model": f"{MODEL_NAME}",
-        "user_provider": f"{MODEL_PROVIDER}",
-        "task_split": "public",
-        "task_path": "data/public.csv",
-    }
-    TASK_TEXT = f"""
-        Your task is to instantiate the finance benchmark to test the agent located at
-        the provided url.
+    # Tools
+    MCP_SERVER: str = os.getenv("MCP_SERVER", "http://127.0.0.1:9020")
 
-        You should use the following env configuration:
-        <env_config>
-        {json.dumps(TASK_CONFIG, indent=2)}
-        </env_config>
-    """
-
+    # Finish condition
     MAX_ITERATIONS = 20
 
 
