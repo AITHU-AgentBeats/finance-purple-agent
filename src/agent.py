@@ -1,3 +1,5 @@
+import json
+
 from a2a.server.tasks import TaskUpdater
 from a2a.types import (
     AgentCapabilities,
@@ -8,6 +10,7 @@ from a2a.types import (
     TextPart,
 )
 
+from tools import Tools
 from config import logger, settings
 from openai import OpenAI
 
@@ -28,6 +31,7 @@ class PurpleAgent:
         self.temperature = temperature
         self.context_id = context_id
         self.conversation_history: list[dict] = []
+        self._tools = Tools(settings.MCP_SERVER, context_id=context_id)
         self.client = OpenAI(
             base_url="https://api.tokenfactory.nebius.com/v1/",
             api_key=settings.NEBIUS_API_KEY
@@ -61,6 +65,9 @@ class PurpleAgent:
             "content": message
         })
 
+        # Get available tools (each time)
+        tool_list = await self._tools.get_tools()
+
         # Loop until submit_answer is called
         for iteration in range(settings.MAX_ITERATIONS):
             try:
@@ -69,8 +76,9 @@ class PurpleAgent:
                     model=self.model,
                     temperature=self.temperature,
                     messages=self._get_system_messages() + self.conversation_history,
-                    #tool_choice="auto",
-                    #parallel_tool_calls=False,  # Process one tool at a time
+                    tool_choice="auto",
+                    tools=tool_list,
+                    parallel_tool_calls=False,  # issues processing in parallel
                 )
 
                 assistant_message = response.choices[0].message
@@ -82,6 +90,28 @@ class PurpleAgent:
                 }
 
                 self.conversation_history.append(message_dict)
+                tool_calls = assistant_message.tool_calls
+                logger.info(f"Calling tools {tool_calls}")
+
+                for tool_call in tool_calls:
+                    tool_name = tool_call.function.name
+                    tool_args = json.loads(tool_call.function.arguments)
+                    if "context_id" in tool_args:
+                        del tool_args["context_id"] # Causes issues
+                    logger.info(f"Calling tool {tool_name} with args {tool_args}")
+
+                    try:
+                        result = await self._tools.call_tool(tool_name, tool_args)
+
+                        self.conversation_history.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": tool_name,
+                            "content": json.dumps(result)
+                        })
+                    except Exception as e:
+                        logger.error(f"Tool {tool_name} failed: {e}")
+                        result = {"success": False, "error": str(e)}
 
                 logger.debug(f"Iteration {iteration + 1}: content={assistant_message.content[:1000] if assistant_message.content else '(no content)'}")
 
@@ -99,6 +129,7 @@ class PurpleAgent:
             "role": "system",
             "content": """
                 You are a financial assistant providing faithful information regarding the questions posed by the user.
+                Use tools to complete your knowledge.
             """
         }]
 
