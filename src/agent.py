@@ -107,7 +107,7 @@ class PurpleAgent:
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "name": tool_name,
-                            "content": json.dumps(result)
+                            "content": result
                         })
                     except Exception as e:
                         logger.error(f"Tool {tool_name} failed: {e}")

@@ -75,9 +75,6 @@ class Tools:
                 timeout=self._timeout
             )
 
-            # DEBUG: Log what we received
-            logger.info(f"MCP tool '{tool_name}' RAW RESULT: type={type(result)}, has_data={hasattr(result, 'data')}, is_iterable={hasattr(result, '__iter__')}")
-
             # Extract data from result
             # FastMCP returns different formats depending on the tool
             if hasattr(result, '__iter__') and not isinstance(result, (str, bytes, dict)):
