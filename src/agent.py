@@ -68,7 +68,7 @@ class PurpleAgent:
         # Get available tools (each time)
         tool_list = await self._tools.get_tools()
 
-        # Loop until submit_answer is called
+        # Loop until final answer is obtained (just for errors)
         for iteration in range(settings.MAX_ITERATIONS):
             try:
                 # Get LLM response with function calling
@@ -83,7 +83,7 @@ class PurpleAgent:
 
                 assistant_message = response.choices[0].message
 
-                # Add assistant response to history (use model_dump() to preserve exact format)
+                # Add response to history
                 message_dict = {
                     "role": "assistant",
                     "content": assistant_message.content
@@ -114,6 +114,10 @@ class PurpleAgent:
                         result = {"success": False, "error": str(e)}
 
                 logger.debug(f"Iteration {iteration + 1}: content={assistant_message.content[:1000] if assistant_message.content else '(no content)'}")
+
+                if len(tool_calls) > 0:
+                    #TODO: Request more calls to the model
+                    return ("incomplete", {"response" : assistant_message.content })
 
                 return ("complete", {"response" : assistant_message.content })
 
