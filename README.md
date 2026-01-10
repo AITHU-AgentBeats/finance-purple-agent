@@ -67,6 +67,47 @@ Options:
 - `--port`: Port to bind (default: `9019`)
 - `--card-url`: External URL for agent card (default: `http://{host}:{port}/`)
 
+## Testing the Server
+
+Once the server is running, you can test it by accessing the agent card endpoint:
+
+### Using curl
+
+```bash
+curl http://127.0.0.1:9019/card
+```
+
+For formatted JSON output:
+
+```bash
+curl http://127.0.0.1:9019/card | python -m json.tool
+```
+
+### Using a web browser
+
+Simply navigate to:
+```
+http://127.0.0.1:9019/card
+```
+
+The `/card` endpoint returns the agent card as JSON, which includes:
+- Agent name and description
+- Version information
+- Capabilities (streaming support)
+- Skills and examples
+- Protocol version
+- Agent URL
+
+### Example Response
+
+The endpoint returns a JSON object containing the agent's metadata, including:
+- `name`: "Finance Purple Agent"
+- `version`: "0.1.0"
+- `description`: Agent description
+- `capabilities`: Agent capabilities (e.g., streaming)
+- `skills`: List of agent skills with examples
+- `url`: Agent service URL
+
 ## Development
 
 To run with development dependencies:
