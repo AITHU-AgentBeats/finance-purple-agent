@@ -78,7 +78,6 @@ class PurpleAgent:
                     messages=self._get_system_messages() + self.conversation_history,
                     tool_choice="auto",
                     tools=tool_list,
-                    parallel_tool_calls=False,  # issues processing in parallel
                 )
 
                 assistant_message = response.choices[0].message
@@ -102,12 +101,13 @@ class PurpleAgent:
 
                     try:
                         result = await self._tools.call_tool(tool_name, tool_args)
+                        logger.info(f"Tool {tool_name} result {result}")
 
                         self.conversation_history.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "name": tool_name,
-                            "content": result
+                            "content": json.dumps(result)
                         })
                     except Exception as e:
                         logger.error(f"Tool {tool_name} failed: {e}")
@@ -115,11 +115,7 @@ class PurpleAgent:
 
                 logger.debug(f"Iteration {iteration + 1}: content={assistant_message.content[:1000] if assistant_message.content else '(no content)'}")
 
-                if len(tool_calls) > 0:
-                    #TODO: Request more calls to the model
-                    return ("incomplete", {"response" : assistant_message.content })
-
-                return ("complete", {"response" : assistant_message.content })
+                return "Final answer", {"status" : "complete", "response" : assistant_message.content}
 
             except Exception as e:
                 logger.error(f"Error in iteration {iteration + 1}: {e}")
