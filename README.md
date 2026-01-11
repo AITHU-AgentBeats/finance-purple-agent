@@ -67,6 +67,76 @@ Options:
 - `--port`: Port to bind (default: `9019`)
 - `--card-url`: External URL for agent card (default: `http://{host}:{port}/`)
 
+## Running with Docker
+
+The project includes a Dockerfile for containerized deployment.
+
+### Prerequisites
+
+- [Docker](https://www.docker.com/) installed and running
+
+### Building the Docker Image
+
+Build the Docker image from the project root:
+
+```bash
+docker build -t finance-purple-agent .
+```
+
+This will:
+- Use the official `uv` Python image as the base
+- Install all dependencies using `uv sync --locked`
+- Configure the container to run the server on port 9019
+
+### Running the Container
+
+Run the container with port mapping:
+
+```bash
+docker run -d -p 9019:9019 --name finance-purple-agent finance-purple-agent
+```
+
+### Environment Variables
+
+To pass environment variables (like `NEBIUS_API_KEY`) to the container:
+
+```bash
+docker run -d -p 9019:9019 \
+  -e NEBIUS_API_KEY=your_api_key_here \
+  -e MODEL_NAME=moonshotai/Kimi-K2-Instruct \
+  --name finance-purple-agent \
+  finance-purple-agent
+```
+
+### Using Environment File
+
+You can also use a `.env` file:
+
+```bash
+docker run -d -p 9019:9019 \
+  --env-file .env \
+  --name finance-purple-agent \
+  finance-purple-agent
+```
+
+### Container Management
+
+- **View logs**: `docker logs finance-purple-agent`
+- **Stop container**: `docker stop finance-purple-agent`
+- **Start container**: `docker start finance-purple-agent`
+- **Remove container**: `docker rm finance-purple-agent`
+
+### Custom Server Options
+
+To override default server arguments:
+
+```bash
+docker run -d -p 9019:9019 \
+  --name finance-purple-agent \
+  finance-purple-agent \
+  --host 0.0.0.0 --port 9019
+```
+
 ## Testing the Server
 
 Once the server is running, you can test it by accessing the agent card endpoint:
