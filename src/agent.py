@@ -2,6 +2,7 @@ from a2a.server.tasks import TaskUpdater
 from a2a.types import (
     AgentCapabilities,
     AgentCard,
+    AgentCardSignature,
     AgentSkill,
     Part,
     TaskState,
@@ -116,6 +117,32 @@ def create_agent_card(url: str) -> AgentCard:
             "Who is the CFO of Microsoft?",
         ],
     )
+    
+    # Standard A2A protocol JSON-RPC method signatures
+    # The A2A SDK's DefaultRequestHandler automatically exposes these standard methods:
+    # - message/send: Send a message and wait for completion
+    # - message/stream: Send a message and receive streaming updates  
+    # - tasks/get: Get task status by ID
+    # - tasks/cancel: Cancel a task
+    signatures = [
+        AgentCardSignature(
+            protected="false",
+            signature="message/send"
+        ),
+        AgentCardSignature(
+            protected="false",
+            signature="message/stream"
+        ),
+        AgentCardSignature(
+            protected="false",
+            signature="tasks/get"
+        ),
+        AgentCardSignature(
+            protected="false",
+            signature="tasks/cancel"
+        )
+    ]
+    
     return AgentCard(
         name="Finance Purple Agent",
         description="Purple agent for the finance agentic benchmark",
@@ -125,4 +152,5 @@ def create_agent_card(url: str) -> AgentCard:
         default_output_modes=["text"],
         capabilities=AgentCapabilities(streaming=True),
         skills=[skill],
+        signatures=signatures,
     )

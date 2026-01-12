@@ -119,23 +119,6 @@ docker run -d -p 9019:9019 \
   finance-purple-agent
 ```
 
-### Container Management
-
-- **View logs**: `docker logs finance-purple-agent`
-- **Stop container**: `docker stop finance-purple-agent`
-- **Start container**: `docker start finance-purple-agent`
-- **Remove container**: `docker rm finance-purple-agent`
-
-### Custom Server Options
-
-To override default server arguments:
-
-```bash
-docker run -d -p 9019:9019 \
-  --name finance-purple-agent \
-  finance-purple-agent \
-  --host 0.0.0.0 --port 9019
-```
 
 ## Testing the Server
 
@@ -147,26 +130,7 @@ Once the server is running, you can test it by accessing the agent card endpoint
 curl http://127.0.0.1:9019/card
 ```
 
-For formatted JSON output:
 
-```bash
-curl http://127.0.0.1:9019/card | python -m json.tool
-```
-
-### Using a web browser
-
-Simply navigate to:
-```
-http://127.0.0.1:9019/card
-```
-
-The `/card` endpoint returns the agent card as JSON, which includes:
-- Agent name and description
-- Version information
-- Capabilities (streaming support)
-- Skills and examples
-- Protocol version
-- Agent URL
 
 ### Example Response
 
@@ -177,21 +141,109 @@ The endpoint returns a JSON object containing the agent's metadata, including:
 - `capabilities`: Agent capabilities (e.g., streaming)
 - `skills`: List of agent skills with examples
 - `url`: Agent service URL
+- `signatures`: List of available JSON-RPC methods
 
-## Development
+## Sending Queries to the Agent
 
-To run with development dependencies:
+The agent supports the A2A protocol and exposes JSON-RPC 2.0 methods for sending queries. The main method for sending queries is `message/send`.
+
+### Using curl
+
+Send a query using the `message/send` method:
 
 ```bash
-uv sync --dev
+curl -X POST http://127.0.0.1:9019/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "message/send",
+    "params": {
+      "message": {
+        "messageId": "unique-message-id",
+        "role": "user",
+        "parts": [
+          {
+            "kind": "text",
+            "text": "What was Apple revenue in Q4 2024?"
+          }
+        ]
+      }
+    },
+    "id": 1
+  }'
 ```
 
-Run tests:
+### Request Format
+
+The request follows JSON-RPC 2.0 format:
+
+- **Endpoint**: `POST http://127.0.0.1:9019/`
+- **Method**: `"message/send"`
+- **Message Structure**:
+  - `messageId`: Unique identifier for the message
+  - `role`: Message role (typically `"user"` for queries)
+  - `parts`: Array of message parts, each containing:
+    - `kind`: Part type (`"text"` for text messages)
+    - `text`: The actual query text
+
+### Example Query
+
 ```bash
-uv run pytest
+curl -X POST http://127.0.0.1:9019/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "message/send",
+    "params": {
+      "message": {
+        "messageId": "query-1",
+        "role": "user",
+        "parts": [
+          {
+            "kind": "text",
+            "text": "Who is the CFO of Microsoft?"
+          }
+        ]
+      }
+    },
+    "id": 1
+  }' | python -m json.tool
 ```
 
-Run linting:
-```bash
-uv run ruff check .
+### Example Response
+
+```json
+{
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": {
+        "artifacts": [
+            {
+                "artifactId": "unique-artifact-id",
+                "name": "Response",
+                "parts": [
+                    {
+                        "kind": "text",
+                        "text": "complete"
+                    },
+                    {
+                        "data": {
+                            "response": "The CFO of Microsoft is Amy Hood."
+                        },
+                        "kind": "data"
+                    }
+                ]
+            }
+        ],
+        "contextId": "unique-context-id",
+        "history": [...],
+        "id": "task-id",
+        "kind": "task",
+        "status": {
+            "state": "completed",
+            "timestamp": "2026-01-12T00:49:42.026112+00:00"
+        }
+    }
+}
 ```
+
