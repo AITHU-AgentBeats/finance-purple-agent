@@ -1,3 +1,5 @@
+import time
+
 from a2a.server.tasks import TaskUpdater
 from a2a.types import (
     AgentCapabilities,
@@ -65,16 +67,36 @@ class PurpleAgent:
         # Loop until submit_answer is called
         for iteration in range(settings.MAX_ITERATIONS):
             try:
+                # Prepare messages for LLM call
+                messages = self._get_system_messages() + self.conversation_history
+                
+                # Log LLM request
+                logger.info(f"LLM Request [iteration {iteration + 1}]: model={self.model}, temperature={self.temperature}, context_id={self.context_id}")
+                logger.debug(f"LLM Request messages: {len(messages)} messages, last user message: {self.conversation_history[-1]['content'][:200] if self.conversation_history else 'N/A'}")
+                
                 # Get LLM response with function calling
+                start_time = time.time()
                 response = self.client.chat.completions.create(
                     model=self.model,
                     temperature=self.temperature,
-                    messages=self._get_system_messages() + self.conversation_history,
+                    messages=messages,
                     #tool_choice="auto",
                     #parallel_tool_calls=False,  # Process one tool at a time
                 )
+                elapsed_time = time.time() - start_time
 
                 assistant_message = response.choices[0].message
+                
+                # Log LLM response
+                response_content = assistant_message.content or ""
+                response_length = len(response_content) if response_content else 0
+                logger.info(f"LLM Response [iteration {iteration + 1}]: elapsed_time={elapsed_time:.2f}s, response_length={response_length} chars")
+                logger.debug(f"LLM Response content: {response_content[:500] if response_content else '(no content)'}")
+                
+                # Log token usage if available
+                if hasattr(response, 'usage') and response.usage:
+                    usage = response.usage
+                    logger.info(f"LLM Token Usage [iteration {iteration + 1}]: prompt_tokens={getattr(usage, 'prompt_tokens', 'N/A')}, completion_tokens={getattr(usage, 'completion_tokens', 'N/A')}, total_tokens={getattr(usage, 'total_tokens', 'N/A')}")
 
                 # Add assistant response to history (use model_dump() to preserve exact format)
                 message_dict = {
@@ -84,7 +106,7 @@ class PurpleAgent:
 
                 self.conversation_history.append(message_dict)
 
-                logger.debug(f"Iteration {iteration + 1}: content={assistant_message.content[:1000] if assistant_message.content else '(no content)'}")
+                logger.debug(f"Iteration {iteration + 1}: content={response_content[:1000] if response_content else '(no content)'}")
 
                 return ("complete", {"response" : assistant_message.content })
 

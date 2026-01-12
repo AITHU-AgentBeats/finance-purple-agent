@@ -147,103 +147,21 @@ The endpoint returns a JSON object containing the agent's metadata, including:
 
 The agent supports the A2A protocol and exposes JSON-RPC 2.0 methods for sending queries. The main method for sending queries is `message/send`.
 
-### Using curl
+### Using the Shell Script
 
-Send a query using the `message/send` method:
-
-```bash
-curl -X POST http://127.0.0.1:9019/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "message/send",
-    "params": {
-      "message": {
-        "messageId": "unique-message-id",
-        "role": "user",
-        "parts": [
-          {
-            "kind": "text",
-            "text": "What was Apple revenue in Q4 2024?"
-          }
-        ]
-      }
-    },
-    "id": 1
-  }'
-```
-
-### Request Format
-
-The request follows JSON-RPC 2.0 format:
-
-- **Endpoint**: `POST http://127.0.0.1:9019/`
-- **Method**: `"message/send"`
-- **Message Structure**:
-  - `messageId`: Unique identifier for the message
-  - `role`: Message role (typically `"user"` for queries)
-  - `parts`: Array of message parts, each containing:
-    - `kind`: Part type (`"text"` for text messages)
-    - `text`: The actual query text
-
-### Example Query
+The easiest way to send queries is using the provided `send_query.sh` script:
 
 ```bash
-curl -X POST http://127.0.0.1:9019/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "message/send",
-    "params": {
-      "message": {
-        "messageId": "query-1",
-        "role": "user",
-        "parts": [
-          {
-            "kind": "text",
-            "text": "Who is the CFO of Microsoft?"
-          }
-        ]
-      }
-    },
-    "id": 1
-  }' | python -m json.tool
+# With query as argument
+./send_query.sh "What was Apple revenue in Q4 2024?"
+
+# Interactive mode (prompts for input)
+./send_query.sh
 ```
 
-### Example Response
-
-```json
-{
-    "id": 1,
-    "jsonrpc": "2.0",
-    "result": {
-        "artifacts": [
-            {
-                "artifactId": "unique-artifact-id",
-                "name": "Response",
-                "parts": [
-                    {
-                        "kind": "text",
-                        "text": "complete"
-                    },
-                    {
-                        "data": {
-                            "response": "The CFO of Microsoft is Amy Hood."
-                        },
-                        "kind": "data"
-                    }
-                ]
-            }
-        ],
-        "contextId": "unique-context-id",
-        "history": [...],
-        "id": "task-id",
-        "kind": "task",
-        "status": {
-            "state": "completed",
-            "timestamp": "2026-01-12T00:49:42.026112+00:00"
-        }
-    }
-}
-```
+The script will:
+- Send the query to the server
+- Display the agent's response
+- Show task status information (Task ID, Context ID, Status, Timestamp)
+- Handle errors gracefully
 

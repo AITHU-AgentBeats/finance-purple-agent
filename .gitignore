@@ -73,6 +73,11 @@ coverage.xml
 dist/
 build/
 
+# Logs
+logs/
+*.log
+*.log.*
+
 # Java
 *.class
 *.jar
