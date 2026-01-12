@@ -2,6 +2,8 @@ import os
 import argparse
 
 import uvicorn
+from starlette.responses import JSONResponse
+from starlette.routing import Route
 
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
@@ -33,9 +35,21 @@ def main():
         http_handler=request_handler,
     )
 
-    logger.info(f"Starting Finance Purple Agent on {args.host}:{args.port}")
+    # Build the Starlette app
+    app = server.build()
 
-    uvicorn.run(server.build(), host=args.host, port=args.port)
+    # Add custom route for agent card endpoint
+    async def agent_card_endpoint(request):
+        """Endpoint to return the agent card."""
+        return JSONResponse(agent_card.model_dump())
+
+    # Add the route to the app
+    app.routes.append(Route("/card", endpoint=agent_card_endpoint, methods=["GET"]))
+
+    logger.info(f"Starting Finance Purple Agent on {args.host}:{args.port}")
+    logger.info(f"Agent card available at: http://{args.host}:{args.port}/card")
+
+    uvicorn.run(app, host=args.host, port=args.port)
 
 if __name__ == "__main__":
     main()
