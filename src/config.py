@@ -31,8 +31,31 @@ def configure_logger():
     """
     Configure logger to be used
     """
-    # idempotent config: remove existing handlers and add one handler
+    import os
+    from pathlib import Path
+    
+    # idempotent config: remove existing handlers and add handlers
     _logger.remove()
+    
+    # Create logs directory if it doesn't exist
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    # Log file path
+    log_file = log_dir / "finance-purple-agent.log"
+    
+    # Add file handler - logs all levels
+    _logger.add(
+        str(log_file),
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {name}:{function}:{line} - {message}",
+        level=settings.LOG_LEVEL,
+        rotation="10 MB",  # Rotate when file reaches 10MB
+        retention="7 days",  # Keep logs for 7 days
+        compression="zip",  # Compress old log files
+        enqueue=True,  # Thread-safe logging
+    )
+    
+    # Add console handler - logs to stdout
     _logger.add(
         lambda msg: print(msg, end=""),
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {name}:{function}:{line} - {message}",

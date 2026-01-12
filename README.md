@@ -119,23 +119,6 @@ docker run -d -p 9019:9019 \
   finance-purple-agent
 ```
 
-### Container Management
-
-- **View logs**: `docker logs finance-purple-agent`
-- **Stop container**: `docker stop finance-purple-agent`
-- **Start container**: `docker start finance-purple-agent`
-- **Remove container**: `docker rm finance-purple-agent`
-
-### Custom Server Options
-
-To override default server arguments:
-
-```bash
-docker run -d -p 9019:9019 \
-  --name finance-purple-agent \
-  finance-purple-agent \
-  --host 0.0.0.0 --port 9019
-```
 
 ## Testing the Server
 
@@ -147,26 +130,7 @@ Once the server is running, you can test it by accessing the agent card endpoint
 curl http://127.0.0.1:9019/card
 ```
 
-For formatted JSON output:
 
-```bash
-curl http://127.0.0.1:9019/card | python -m json.tool
-```
-
-### Using a web browser
-
-Simply navigate to:
-```
-http://127.0.0.1:9019/card
-```
-
-The `/card` endpoint returns the agent card as JSON, which includes:
-- Agent name and description
-- Version information
-- Capabilities (streaming support)
-- Skills and examples
-- Protocol version
-- Agent URL
 
 ### Example Response
 
@@ -177,21 +141,27 @@ The endpoint returns a JSON object containing the agent's metadata, including:
 - `capabilities`: Agent capabilities (e.g., streaming)
 - `skills`: List of agent skills with examples
 - `url`: Agent service URL
+- `signatures`: List of available JSON-RPC methods
 
-## Development
+## Sending Queries to the Agent
 
-To run with development dependencies:
+The agent supports the A2A protocol and exposes JSON-RPC 2.0 methods for sending queries. The main method for sending queries is `message/send`.
+
+### Using the Shell Script
+
+The easiest way to send queries is using the provided `send_query.sh` script:
 
 ```bash
-uv sync --dev
+# With query as argument
+./send_query.sh "What was Apple revenue in Q4 2024?"
+
+# Interactive mode (prompts for input)
+./send_query.sh
 ```
 
-Run tests:
-```bash
-uv run pytest
-```
+The script will:
+- Send the query to the server
+- Display the agent's response
+- Show task status information (Task ID, Context ID, Status, Timestamp)
+- Handle errors gracefully
 
-Run linting:
-```bash
-uv run ruff check .
-```
