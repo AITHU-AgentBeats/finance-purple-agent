@@ -85,8 +85,9 @@ class PurpleAgent:
                     model=self.model,
                     temperature=self.temperature,
                     messages=messages,
-                    #tool_choice="auto",
-                    #parallel_tool_calls=False,  # Process one tool at a time
+                    tool_choice="auto",
+                    tools=tool_list,
+                    parallel_tool_calls=False,  # Process one tool at a time
                 )
                 elapsed_time = time.time() - start_time
 
@@ -172,7 +173,7 @@ def create_agent_card(url: str) -> AgentCard:
     # Standard A2A protocol JSON-RPC method signatures
     # The A2A SDK's DefaultRequestHandler automatically exposes these standard methods:
     # - message/send: Send a message and wait for completion
-    # - message/stream: Send a message and receive streaming updates  
+    # - message/stream: Send a message and receive streaming updates
     # - tasks/get: Get task status by ID
     # - tasks/cancel: Cancel a task
     signatures = [
