@@ -75,7 +75,7 @@ class PurpleAgent:
             try:
                 # Prepare messages for LLM call
                 messages = self._get_system_messages() + self.conversation_history
-                
+
                 # Log LLM request
                 logger.info(f"LLM Request [iteration {iteration + 1}]: model={self.model}, temperature={self.temperature}, context_id={self.context_id}")
                 logger.info(f"LLM Request [iteration {iteration + 1}]: {len(messages)} messages in conversation")
@@ -107,6 +107,8 @@ class PurpleAgent:
                 else:
                     logger.info(f"LLM Request Tools [iteration {iteration + 1}]: no tools available")
                 
+                logger.debug(f"LLM Request messages: {len(messages)} messages, last user message: {self.conversation_history[-1]['content'][:200] if self.conversation_history else 'N/A'}")
+
                 # Get LLM response with function calling
                 start_time = time.time()
                 response = self.client.chat.completions.create(
@@ -164,6 +166,7 @@ class PurpleAgent:
                 for tool_call in tool_calls:
                     tool_name = tool_call.function.name
                     tool_args = json.loads(tool_call.function.arguments)
+                    
                     if "context_id" in tool_args:
                         del tool_args["context_id"] # Causes issues
                     logger.info(f"Calling tool {tool_name} with args {tool_args}")
@@ -225,7 +228,7 @@ def create_agent_card(url: str) -> AgentCard:
     # Standard A2A protocol JSON-RPC method signatures
     # The A2A SDK's DefaultRequestHandler automatically exposes these standard methods:
     # - message/send: Send a message and wait for completion
-    # - message/stream: Send a message and receive streaming updates  
+    # - message/stream: Send a message and receive streaming updates
     # - tasks/get: Get task status by ID
     # - tasks/cancel: Cancel a task
     signatures = [
