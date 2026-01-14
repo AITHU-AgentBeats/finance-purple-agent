@@ -78,6 +78,35 @@ class PurpleAgent:
 
                 # Log LLM request
                 logger.info(f"LLM Request [iteration {iteration + 1}]: model={self.model}, temperature={self.temperature}, context_id={self.context_id}")
+                logger.info(f"LLM Request [iteration {iteration + 1}]: {len(messages)} messages in conversation")
+                
+                # Log full request text/messages
+                logger.info(f"LLM Request Messages [iteration {iteration + 1}]:")
+                for idx, msg in enumerate(messages):
+                    role = msg.get("role", "unknown")
+                    content = msg.get("content", "")
+                    if role == "system":
+                        logger.info(f"  Message {idx + 1} [{role}]: {content[:500]}{'...' if len(content) > 500 else ''}")
+                    elif role == "user":
+                        logger.info(f"  Message {idx + 1} [{role}]: {content}")
+                    elif role == "assistant":
+                        logger.info(f"  Message {idx + 1} [{role}]: {content[:500]}{'...' if len(content) > 500 else ''}")
+                    elif role == "tool":
+                        tool_name = msg.get("name", "unknown")
+                        tool_content = msg.get("content", "")
+                        logger.info(f"  Message {idx + 1} [{role}:{tool_name}]: {tool_content[:500]}{'...' if len(tool_content) > 500 else ''}")
+                    else:
+                        logger.info(f"  Message {idx + 1} [{role}]: {str(msg)[:500]}")
+                
+                logger.debug(f"LLM Request full messages JSON: {json.dumps(messages, indent=2, ensure_ascii=False)}")
+                
+                # Log tools being passed to LLM
+                if tool_list:
+                    logger.info(f"LLM Request Tools [iteration {iteration + 1}]: {len(tool_list)} tool(s) available")
+                    logger.info(f"LLM Request Tool Names: {[t['function']['name'] for t in tool_list]}")
+                else:
+                    logger.info(f"LLM Request Tools [iteration {iteration + 1}]: no tools available")
+                
                 logger.debug(f"LLM Request messages: {len(messages)} messages, last user message: {self.conversation_history[-1]['content'][:200] if self.conversation_history else 'N/A'}")
 
                 # Get LLM response with function calling
@@ -86,9 +115,9 @@ class PurpleAgent:
                     model=self.model,
                     temperature=self.temperature,
                     messages=messages,
-                    tool_choice="auto",
-                    tools=tool_list,
-                    parallel_tool_calls=False,  # Process one tool at a time
+                    tools=tool_list if tool_list else None,
+                    tool_choice="auto",  # Enable automatic tool calling
+                    #parallel_tool_calls=False,  # Process one tool at a time
                 )
                 elapsed_time = time.time() - start_time
 
@@ -98,12 +127,33 @@ class PurpleAgent:
                 response_content = assistant_message.content or ""
                 response_length = len(response_content) if response_content else 0
                 logger.info(f"LLM Response [iteration {iteration + 1}]: elapsed_time={elapsed_time:.2f}s, response_length={response_length} chars")
-                logger.debug(f"LLM Response content: {response_content[:500] if response_content else '(no content)'}")
+                
+                # Log full response text
+                if response_content:
+                    logger.info(f"LLM Response Text [iteration {iteration + 1}]:")
+                    logger.info(f"  {response_content}")
+                else:
+                    logger.info(f"LLM Response Text [iteration {iteration + 1}]: (no content)")
+                
+                # Log tool calls if present
+                tool_calls = assistant_message.tool_calls
+                if tool_calls:
+                    logger.info(f"LLM Response Tool Calls [iteration {iteration + 1}]: {len(tool_calls)} tool call(s)")
+                    for idx, tool_call in enumerate(tool_calls):
+                        tool_name = tool_call.function.name
+                        tool_args = tool_call.function.arguments
+                        logger.info(f"  Tool Call {idx + 1}: {tool_name}")
+                        logger.info(f"    Arguments: {tool_args}")
+                else:
+                    logger.info(f"LLM Response Tool Calls [iteration {iteration + 1}]: none")
                 
                 # Log token usage if available
                 if hasattr(response, 'usage') and response.usage:
                     usage = response.usage
                     logger.info(f"LLM Token Usage [iteration {iteration + 1}]: prompt_tokens={getattr(usage, 'prompt_tokens', 'N/A')}, completion_tokens={getattr(usage, 'completion_tokens', 'N/A')}, total_tokens={getattr(usage, 'total_tokens', 'N/A')}")
+                
+                # Log full response object at DEBUG level
+                logger.debug(f"LLM Response full object: {json.dumps({'content': response_content, 'tool_calls': [{'name': tc.function.name, 'arguments': tc.function.arguments} for tc in (tool_calls or [])]}, indent=2, ensure_ascii=False)}")
 
                 # Add response to history
                 message_dict = {
@@ -112,8 +162,6 @@ class PurpleAgent:
                 }
 
                 self.conversation_history.append(message_dict)
-                tool_calls = assistant_message.tool_calls
-                logger.info(f"Calling tools {tool_calls}")
 
                 for tool_call in tool_calls:
                     tool_name = tool_call.function.name
@@ -139,7 +187,12 @@ class PurpleAgent:
 
                 logger.debug(f"Iteration {iteration + 1}: content={response_content[:1000] if response_content else '(no content)'}")
 
-                return "Final answer", {"status" : "complete", "response" : assistant_message.content}
+                # If there are no tool calls, the LLM gave a final answer - return it
+                if not tool_calls:
+                    return "Final answer", {"status" : "complete", "response" : assistant_message.content}
+                
+                # If there are tool calls, continue to next iteration so LLM can use the tool results
+                # The loop will continue and call LLM again with the tool results in conversation_history
 
             except Exception as e:
                 logger.error(f"Error in iteration {iteration + 1}: {e}")
