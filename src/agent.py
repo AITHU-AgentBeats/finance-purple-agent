@@ -33,7 +33,9 @@ class PurpleAgent:
         self.temperature = temperature
         self.context_id = context_id
         self.conversation_history: list[dict] = []
-        self._tools = Tools(settings.MCP_SERVER, context_id=context_id)
+        self._tools = None
+        if settings.MCP_ENABLED:
+            self._tools = Tools(settings.MCP_SERVER, context_id=context_id)
         self.client = OpenAI(
             base_url="https://api.tokenfactory.nebius.com/v1/",
             api_key=settings.NEBIUS_API_KEY
@@ -68,7 +70,7 @@ class PurpleAgent:
         })
 
         # Get available tools (each time)
-        tool_list = await self._tools.get_tools()
+        tool_list = await self._tools.get_tools() if self._tools else None
 
         # Loop until final answer is obtained (just for errors)
         for iteration in range(settings.MAX_ITERATIONS):
@@ -101,7 +103,7 @@ class PurpleAgent:
                 logger.debug(f"LLM Request full messages JSON: {json.dumps(messages, indent=2, ensure_ascii=False)}")
                 
                 # Log tools being passed to LLM
-                if tool_list:
+                if self._tools:
                     logger.info(f"LLM Request Tools [iteration {iteration + 1}]: {len(tool_list)} tool(s) available")
                     logger.info(f"LLM Request Tool Names: {[t['function']['name'] for t in tool_list]}")
                 else:
@@ -111,14 +113,21 @@ class PurpleAgent:
 
                 # Get LLM response with function calling
                 start_time = time.time()
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    temperature=self.temperature,
-                    messages=messages,
-                    tools=tool_list if tool_list else None,
-                    tool_choice="auto",  # Enable automatic tool calling
-                    #parallel_tool_calls=False,  # Process one tool at a time
-                )
+                if self._tools:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        temperature=self.temperature,
+                        messages=messages,
+                        tools=tool_list if tool_list else None,
+                        tool_choice="auto",  # Enable automatic tool calling
+                        #parallel_tool_calls=False,  # Process one tool at a time
+                    )
+                else:
+                    response = self.client.chat.completions.create(
+                        model=self.model,
+                        temperature=self.temperature,
+                        messages=messages
+                    )
                 elapsed_time = time.time() - start_time
 
                 assistant_message = response.choices[0].message
@@ -146,7 +155,7 @@ class PurpleAgent:
                         logger.info(f"    Arguments: {tool_args}")
                 else:
                     logger.info(f"LLM Response Tool Calls [iteration {iteration + 1}]: none")
-                
+
                 # Log token usage if available
                 if hasattr(response, 'usage') and response.usage:
                     usage = response.usage
@@ -202,15 +211,16 @@ class PurpleAgent:
 
     def _get_system_messages(self) -> list[dict]:
         """Get system messages for the agent."""
+        default_message = """
+                You are a financial assistant providing faithful information regarding the questions posed by the user.
+            """
+        if self._tools:
+            default_message += "Use tools to complete your knowledge."
+
         return [{
             "role": "system",
-            "content": """
-                You are a financial assistant providing faithful information regarding the questions posed by the user.
-                Use tools to complete your knowledge.
-            """
+            "content": default_message
         }]
-
-
 
 def create_agent_card(url: str) -> AgentCard:
     """Create the agent card for the finance agent."""

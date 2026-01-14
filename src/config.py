@@ -18,6 +18,7 @@ class Settings:
     MODEL_NAME: str = os.getenv("MODEL_NAME", "moonshotai/Kimi-K2-Instruct")
 
     # Tools
+    MCP_ENABLED: bool = os.getenv("MCP_ENABLED", "false").lower() in ('true', '1', 't')
     MCP_SERVER: str = os.getenv("MCP_SERVER", "http://127.0.0.1:9020")
 
     # Finish condition
