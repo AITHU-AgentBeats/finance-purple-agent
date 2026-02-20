@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 from dataclasses import dataclass
 
@@ -28,6 +29,17 @@ class Settings:
 # Create settings
 settings = Settings()
 
+if not settings.NEBIUS_API_KEY or not settings.NEBIUS_API_KEY.strip():
+    print(
+        "Error: NEBIUS_API_KEY is not set. The finance agent requires a Nebius API key to call the LLM.\n"
+        "  - Set it in your environment: export NEBIUS_API_KEY=your_key\n"
+        "  - Or add it to a .env file in the project root: NEBIUS_API_KEY=your_key\n"
+        "  - Get an API key from https://nebius.com (or your Nebius provider).",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 def configure_logger():
     """
     Configure logger to be used
@@ -44,7 +56,9 @@ def configure_logger():
     
     # Log file path
     log_file = log_dir / "finance-purple-agent.log"
-    
+    failure_log_file = log_dir / "agent-failures.log"
+    success_log_file = log_dir / "agent-successes.log"
+
     # Add file handler - logs all levels
     _logger.add(
         str(log_file),
@@ -55,13 +69,79 @@ def configure_logger():
         compression="zip",  # Compress old log files
         enqueue=True,  # Thread-safe logging
     )
-    
+
+    # Add failure log file - only records with agent_failure=True in extra
+    _logger.add(
+        str(failure_log_file),
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {name}:{function}:{line} - {message}",
+        level="WARNING",
+        filter=lambda record: record["extra"].get("agent_failure") is True,
+        rotation="10 MB",
+        retention="30 days",
+        compression="zip",
+        enqueue=True,
+    )
+
+    # Add success log file - only records with agent_success=True in extra
+    _logger.add(
+        str(success_log_file),
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {name}:{function}:{line} - {message}",
+        level="INFO",
+        filter=lambda record: record["extra"].get("agent_success") is True,
+        rotation="10 MB",
+        retention="30 days",
+        compression="zip",
+        enqueue=True,
+    )
+
     # Add console handler - logs to stdout
     _logger.add(
         lambda msg: print(msg, end=""),
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {name}:{function}:{line} - {message}",
         level=settings.LOG_LEVEL,
     )
+
+
+def log_agent_failure(
+    reason: str,
+    *,
+    user_message: str | None = None,
+    context_id: str | None = None,
+    task_id: str | None = None,
+    detail: str | None = None,
+) -> None:
+    """Log an agent failure to the main log and to logs/agent-failures.log."""
+    parts = [f"Agent failed to satisfy request: {reason}"]
+    if user_message is not None:
+        parts.append(f"user_message={user_message!r}")
+    if context_id is not None:
+        parts.append(f"context_id={context_id}")
+    if task_id is not None:
+        parts.append(f"task_id={task_id}")
+    if detail is not None:
+        parts.append(f"detail={detail}")
+    _logger.bind(agent_failure=True).warning(" | ".join(parts))
+
+
+def log_agent_success(
+    *,
+    user_message: str | None = None,
+    context_id: str | None = None,
+    task_id: str | None = None,
+    response_preview: str | None = None,
+) -> None:
+    """Log a successful task to the main log and to logs/agent-successes.log."""
+    parts = ["Agent satisfied request"]
+    if user_message is not None:
+        parts.append(f"user_message={user_message!r}")
+    if context_id is not None:
+        parts.append(f"context_id={context_id}")
+    if task_id is not None:
+        parts.append(f"task_id={task_id}")
+    if response_preview is not None:
+        preview = response_preview[:200] + "..." if len(response_preview) > 200 else response_preview
+        parts.append(f"response_preview={preview!r}")
+    _logger.bind(agent_success=True).info(" | ".join(parts))
 
 
 # configure logger on import so other modules can `from .config import logger`

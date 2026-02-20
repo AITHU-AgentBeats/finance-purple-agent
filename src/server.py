@@ -1,8 +1,9 @@
+import json
 import os
 import argparse
 
 import uvicorn
-from starlette.responses import JSONResponse
+from starlette.responses import Response
 from starlette.routing import Route
 
 from a2a.server.apps import A2AStarletteApplication
@@ -40,8 +41,9 @@ def main():
 
     # Add custom route for agent card endpoint
     async def agent_card_endpoint(request):
-        """Endpoint to return the agent card."""
-        return JSONResponse(agent_card.model_dump())
+        """Endpoint to return the agent card as pretty-printed JSON."""
+        body = json.dumps(agent_card.model_dump(), indent=2, ensure_ascii=False)
+        return Response(content=body, media_type="application/json")
 
     # Add the route to the app
     app.routes.append(Route("/card", endpoint=agent_card_endpoint, methods=["GET"]))

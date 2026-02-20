@@ -13,7 +13,7 @@ from a2a.types import (
 )
 
 from tools import Tools
-from config import logger, settings
+from config import logger, log_agent_failure, settings
 from openai import OpenAI
 
 # States
@@ -205,9 +205,21 @@ class PurpleAgent:
 
             except Exception as e:
                 logger.error(f"Error in iteration {iteration + 1}: {e}")
+                log_agent_failure(
+                    "iteration error",
+                    user_message=message,
+                    context_id=self.context_id,
+                    detail=str(e),
+                )
 
         # Max iterations reached without submit_answer
         logger.warning(f"Max iterations ({settings.MAX_ITERATIONS}) reached without submitting answer")
+        log_agent_failure(
+            "max iterations reached without final answer",
+            user_message=message,
+            context_id=self.context_id,
+            detail=f"MAX_ITERATIONS={settings.MAX_ITERATIONS}",
+        )
 
     def _get_system_messages(self) -> list[dict]:
         """Get system messages for the agent."""

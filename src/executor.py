@@ -13,7 +13,7 @@ from a2a.utils import new_agent_text_message, new_task, get_message_text
 from a2a.utils.errors import ServerError
 
 from agent import PurpleAgent, TERMINAL_STATES
-from config import logger
+from config import logger, log_agent_failure, log_agent_success
 
 class PurpleAgentExecutor(AgentExecutor):
     """Executor that wraps the FinanceAgent for A2A protocol."""
@@ -81,8 +81,23 @@ class PurpleAgentExecutor(AgentExecutor):
             )
             await updater.complete()
 
+            response_preview = (answer_data or {}).get("response", "") if isinstance(answer_data, dict) else ""
+            log_agent_success(
+                user_message=message_text,
+                context_id=context_id,
+                task_id=task.id,
+                response_preview=response_preview or status_message,
+            )
+
         except Exception as e:
             logger.error(f"Agent error: {e}")
+            log_agent_failure(
+                "executor exception",
+                user_message=message_text,
+                context_id=context_id,
+                task_id=task.id,
+                detail=str(e),
+            )
             await updater.failed(
                 new_agent_text_message(f"Error: {e}", context_id=context_id, task_id=task.id)
             )
